@@ -313,7 +313,9 @@ describe("Dashboard Conversation Management", () => {
       const messageList = [{ role: 'user', content: 'Hello' }];
       const result = await dashboard.callLLM(messageList);
 
-      expect(result).toBe('Hello from LLM');
+      expect(result.length).toBe(1);
+      expect(result[0].model).toBe('default');
+      expect(result[0].content).toBe('Hello from LLM');
     });
 
     it("should throw error for failed response", async () => {
@@ -329,5 +331,47 @@ describe("Dashboard Conversation Management", () => {
       
       await expectAsync(dashboard.callLLM(messageList)).toBeRejected();
     });
+    it("should send selected models to /api/chat", async () => {
+  global.fetch = jasmine.createSpy('fetch').and.resolveTo({
+    ok: true,
+    json: async () => ({
+      responses: [
+        { model: "llama3.2", content: "A" },
+        { model: "qwen2.5:0.5b", content: "B" }
+      ]
+    })
+  });
+
+  const messages = [{ role: "user", content: "Hello" }];
+  const models = ["llama3.2", "qwen2.5:0.5b"];
+
+  const result = await dashboard.callLLM(messages, models);
+
+  const [, options] = global.fetch.calls.argsFor(0);
+  const body = JSON.parse(options.body);
+
+  expect(body.models).toEqual(models);
+  expect(result.length).toBe(2);
+  expect(result[0].model).toBe("llama3.2");
+});
+
+
+it("should support legacy single-response payloads", async () => {
+  global.fetch = jasmine.createSpy('fetch').and.resolveTo({
+    ok: true,
+    json: async () => ({
+      reply: "Single legacy reply"
+    })
+  });
+
+  const result = await dashboard.callLLM(
+    [{ role: "user", content: "Hi" }],
+    ["llama3.2"]
+  );
+
+  expect(result.length).toBe(1);
+  expect(result[0].model).toBe("default");
+  expect(result[0].content).toBe("Single legacy reply");
+});
   });
 });

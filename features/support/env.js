@@ -78,16 +78,130 @@ Before(async function () {
         const [resource] = args;
         
         // Mock the /api/chat endpoint for faster tests
-        if (typeof resource === 'string' && resource.includes('/api/chat')) {
-          return Promise.resolve(
-            new Response(
-              JSON.stringify({
-                response: 'Mocked AI response for testing. Real LLM would respond here.'
-              }),
-              { status: 200, headers: { 'Content-Type': 'application/json' } }
-            )
-          );
-        }
+if (typeof resource === 'string' && resource.includes('/api/chat')) {
+  const requestOptions = args[1] || {};
+  let requestBody = {};
+
+  try {
+    requestBody = JSON.parse(requestOptions.body || '{}');
+  } catch (error) {
+    requestBody = {};
+  }
+
+  const selectedModels = requestBody.models || ['llama3.2', 'misqwen2.5:0.5btral', 'phi3'];
+  const messages = requestBody.messages || [];
+  const lastUserMessage =
+    messages.length > 0
+      ? messages[messages.length - 1].content.trim()
+      : 'your message';
+
+  function buildReply(model, prompt) {
+  const lower = prompt.toLowerCase();
+
+    // --- SIMPLE MATH HANDLER ---
+  const mathCheck = prompt.match(/(-?\d+(?:\.\d+)?)\s*([+\-*/x])\s*(-?\d+(?:\.\d+)?)/i);
+
+  if (mathCheck) {
+    const a = Number(mathCheck[1]);
+    const operator = mathCheck[2].toLowerCase();
+    const b = Number(mathCheck[3]);
+
+    let result;
+
+    if (operator === "+") result = a + b;
+    else if (operator === "-") result = a - b;
+    else if (operator === "*" || operator === "x") result = a * b;
+    else if (operator === "/") result = b === 0 ? "undefined because division by zero is not allowed" : a / b;
+
+    if (model === "llama3.2") {
+      return `The answer is ${result}.`;
+    }
+
+    if (model === "qwen2.5:0.5b") {
+      return `Let's calculate it step by step: ${a} ${operator} ${b} = ${result}.`;
+    }
+
+    if (model === "phi3") {
+      return `Answer: ${result}.`;
+    }
+
+    return `${result}`;
+  }
+
+  if (lower.includes('weather')) {
+    if (model === 'llama3.2') {
+      return 'I cannot access live weather in this automated test, but I can still answer the request directly: normally I would give the current temperature, conditions, and short forecast.';
+    }
+    if (model === 'qwen2.5:0.5b') {
+      return 'For a weather question, I would normally provide a fuller forecast summary, including current conditions, expected changes, and any important warnings.';
+    }
+    return 'Weather check: live data is disabled in this test, but the expected response would be a concise forecast with temperature and conditions.';
+  }
+
+  if (lower.includes('rome')) {
+    if (model === 'llama3.2') {
+      return 'The fall of Rome was mainly caused by political instability, economic decline, military weakness, and outside invasions.';
+    }
+    if (model === 'qwen2.5:0.5b') {
+      return 'Rome fell because several long-term pressures built up together: unstable leadership, financial strain, reliance on mercenaries, administrative division, and repeated invasions.';
+    }
+    return 'Short answer: Rome declined because its government, economy, army, and borders all weakened over time.';
+  }
+
+  if (lower.includes('hello') || lower.includes('hi')) {
+    if (model === 'llama3.2') {
+      return 'Hello! I am ready to help with your question.';
+    }
+    if (model === 'qwen2.5:0.5b') {
+      return 'Hi! I can help you think through the problem step by step.';
+    }
+    return 'Hey! Send me what you want help with.';
+  }
+
+  if (lower.includes('explain')) {
+    if (model === 'llama3.2') {
+      return `I can explain "${prompt}" in simple terms by focusing on the main idea first.`;
+    }
+    if (model === 'qwen2.5:0.5b') {
+      return `I would explain "${prompt}" by giving context, breaking it into parts, and then summarizing the key takeaway.`;
+    }
+    return `Quick explanation: I would simplify "${prompt}" into the most important points.`;
+  }
+
+  if (prompt.endsWith('?')) {
+    if (model === 'llama3.2') {
+      return `My direct answer to "${prompt}" would focus on the main facts.`;
+    }
+    if (model === 'qwen2.5:0.5b') {
+      return `That question deserves a more detailed answer. I would explain the background, reasoning, and conclusion for "${prompt}".`;
+    }
+    return `Concise answer: I would respond to "${prompt}" with the shortest useful explanation.`;
+  }
+
+  if (model === 'llama3.2') {
+    return `I understand your statement: "${prompt}". I would respond clearly and directly.`;
+  }
+  if (model === 'qwen2.5:0.5b') {
+    return `You said: "${prompt}". I would build on that with a more detailed and thoughtful response.`;
+  }
+  return `Got it: "${prompt}". I would keep my response brief and practical.`;
+}
+
+  const responses = selectedModels.map((model) => ({
+    model,
+    content: buildReply(model, lastUserMessage)
+  }));
+
+  return Promise.resolve(
+    new Response(
+      JSON.stringify({
+        success: true,
+        responses
+      }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } }
+    )
+  );
+}
         
         // Use real fetch for all other endpoints
         return originalFetch.apply(this, args);
