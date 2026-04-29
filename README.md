@@ -40,6 +40,8 @@ To run the tests, use the following commands:
 $env:NODE_ENV="test"
 npm run test:cucumber
 
+Here is a link to the most recent testing demo which includes BOTH automated testing and manual testing: https://app.screencastify.com/watch/lll75Z60DP56tZTUQQgj?checkOrg=710e8a14-39ab-4f8d-9f47-d607b019af65
+
 Development Approach:
 
 For this project, I took on the roles of requirements engineering, development, and testing. I defined the core features and user flows, implemented both the frontend and backend, and created automated tests to verify functionality.
